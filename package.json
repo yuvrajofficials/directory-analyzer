@@ -12,7 +12,7 @@
     "temporal": "temporal server start-dev",
     "dev": "ts-node src/activities/readfile-activity.js",
     "start.watch": "nodemon src/workers/worker.ts",
-    "start:worker": "npx ts-node src/workers/fs-worker.ts",
+    "start:worker": "npx ts-node src/workers/fs-worker.ts 20",
     "start:client": "npx ts-node src/clients/fs-client.ts",
     "workflow": "ts-node src/clients/client.ts"
   },

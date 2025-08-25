@@ -13,12 +13,11 @@ export interface BenchmarkResult {
 }
 
 export interface DirectoryStats {
+  dirPath: string;
   fileCount: number;
   totalSize: number;
-  fileSizes: number[] | FileSizeStats;
+  fileSizes: FileSizeStats;
   charCount: number;
-  lineCounts: Record<string, number>;
-  wordFrequencies: Record<string, number>;
   fileTypes: Record<string, number>;
   maxDepth: number;
 }
