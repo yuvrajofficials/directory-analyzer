@@ -2,20 +2,18 @@
   "name": "temporal-continue-as-new",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "build": "tsc --build",
-    "build.watch": "tsc --build --watch",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "eslint .",
-    "start": "ts-node src/workers/worker.ts",
-    "temporal": "temporal server start-dev",
-    "dev": "ts-node src/activities/readfile-activity.js",
-    "start.watch": "nodemon src/workers/worker.ts",
-    "start:worker": "npx ts-node src/workers/fs-worker.ts 20",
-    "start:client": "npx ts-node src/clients/fs-client.ts",
-    "workflow": "ts-node src/clients/client.ts"
-  },
+"scripts": {
+  "build": "tsc --build",
+  "build.watch": "tsc --build --watch",
+  "format": "prettier --write .",
+  "format:check": "prettier --check .",
+  "lint": "eslint .",
+  "temporal": "temporal server start-dev",
+  "start:worker": "npx ts-node src/workers/fs-worker.ts 1",
+  "start:client": "npx ts-node src/clients/fs-client.ts 5",
+  "debug:worker": "node --inspect-brk -r ts-node/register src/workers/fs-worker.ts",
+  "debug:client": "node --inspect-brk -r ts-node/register src/clients/fs-client.ts"
+},
   "nodemonConfig": {
     "execMap": {
       "ts": "ts-node"

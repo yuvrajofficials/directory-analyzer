@@ -9,7 +9,6 @@ const { analyzeAndBenchmark, getSubDirectories } = proxyActivities<typeof activi
 export async function fsWorkflow(nodeModulesPath: string): Promise<string> {
   const subDirs = await getSubDirectories(nodeModulesPath);
 
-  // Run all subdirectories in parallel
   await Promise.all(
     subDirs.map((dir) => analyzeAndBenchmark(dir))
   );
