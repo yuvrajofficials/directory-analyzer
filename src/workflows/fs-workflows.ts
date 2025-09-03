@@ -1,17 +1,22 @@
-// fs-workflows.ts
 import { proxyActivities } from "@temporalio/workflow";
 import type * as activities from "../activities/fs-activities";
 
-const { analyzeAndBenchmark, getSubDirectories } = proxyActivities<typeof activities>({
-  startToCloseTimeout: "5 minutes",
-});
+const { analyzeDirectoryActivity, benchmarkActivity, insertToPinotActivity } =
+  proxyActivities<typeof activities>({
+    startToCloseTimeout: "1 minute",
+  });
 
-export async function fsWorkflow(nodeModulesPath: string): Promise<string> {
-  const subDirs = await getSubDirectories(nodeModulesPath);
+export async function fsWorkflows(directory: string) {
+  const stats = await analyzeDirectoryActivity(directory);
+  const perf = await benchmarkActivity(directory);
 
-  await Promise.all(
-    subDirs.map((dir) => analyzeAndBenchmark(dir))
-  );
+  const summary = {
+    ...stats,
+    performance: perf,
+    ts: Date.now(),
+  };
 
-  return `Analysis completed for ${subDirs.length} directories.`;
+  await insertToPinotActivity(summary);
+
+  return summary;
 }

@@ -1,32 +1,17 @@
-// import { Worker } from "@temporalio/worker";
-// import * as activities from "../activities/fs-activities";
-
-// async function run() {
-//   const worker = await Worker.create({
-//     workflowsPath: require.resolve("../workflows/fs-workflows"),
-//     activities,
-//     taskQueue: "fs-task-queue",
-//   });
-
-//   console.log("Worker started");
-//   await worker.run();
-// }
-
-// run().catch((err) => {
-//   console.error(err);
-//   process.exit(1);
-// });
 
 
 import { Worker } from "@temporalio/worker";
 import * as activities from "../activities/fs-activities";
 
 async function runWorker(id: number) {
-  const worker = await Worker.create({
-    workflowsPath: require.resolve("../workflows/fs-workflows"),
-    activities,
-    taskQueue: "fs-task-queue",
-  });
+const worker = await Worker.create({
+  workflowsPath: require.resolve("../workflows/fs-workflows"),
+  activities,
+  taskQueue: "fs-task-queue",
+  maxConcurrentActivityTaskExecutions: 20,   // allow up to 20 activities at once
+  maxConcurrentWorkflowTaskExecutions: 10
+});
+
 
   console.log(`🚀 Worker ${id} started`);
   await worker.run();

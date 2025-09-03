@@ -1,12 +1,13 @@
-import fs from "fs/promises";
+import * as fsp from "fs/promises";
 import path from "path";
 import { performance } from "perf_hooks";
 import { InsertDataToPinot } from "./kafka-activities";
 import { BenchmarkResult, DirectoryStats, FileSizeStats } from "../interfaces/interface";
 
+// ---------- Utility ----------
 async function readFileSafe(filePath: string): Promise<string> {
   try {
-    return await fs.readFile(filePath, "utf8");
+    return await fsp.readFile(filePath, "utf8");
   } catch {
     return "";
   }
@@ -20,6 +21,7 @@ function computeStats(fileSizes: number[]): FileSizeStats {
   return { min, max, avg };
 }
 
+// ---------- Benchmark ----------
 async function benchmark(
   fn: () => Promise<unknown>,
   concurrency: number = 5
@@ -28,7 +30,7 @@ async function benchmark(
   const memStart = process.memoryUsage().heapUsed;
   const cpuStart = process.cpuUsage();
 
-  const tasks = Array.from({ length: concurrency }, fn);
+  const tasks = Array.from({ length: concurrency }, () => fn());
   await Promise.all(tasks);
 
   const end = performance.now();
@@ -44,6 +46,7 @@ async function benchmark(
   };
 }
 
+// ---------- Analyzer ----------
 export async function analyzeDirectory(
   dirPath: string,
   depth: number = 0,
@@ -61,10 +64,9 @@ export async function analyzeDirectory(
       fileSizes: { min: 0, max: 0, avg: 0 },
     };
   }
-
   if (!rawFileSizes) rawFileSizes = [];
 
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
+  const entries = await fsp.readdir(dirPath, { withFileTypes: true });
 
   await Promise.all(
     entries.map(async (entry) => {
@@ -73,7 +75,7 @@ export async function analyzeDirectory(
         await analyzeDirectory(fullPath, depth + 1, stats, rawFileSizes);
         stats!.maxDepth = Math.max(stats!.maxDepth, depth + 1);
       } else {
-        const stat = await fs.stat(fullPath);
+        const stat = await fsp.stat(fullPath);
         stats!.fileCount++;
         stats!.totalSize += stat.size;
         rawFileSizes!.push(stat.size);
@@ -91,12 +93,15 @@ export async function analyzeDirectory(
   return stats;
 }
 
+// ---------- Combined ----------
 export async function analyzeAndBenchmark(directory: string) {
   const rawFileSizes: number[] = [];
-
   const stats = await analyzeDirectory(directory, 0, undefined, rawFileSizes);
 
-  const perf = await benchmark(async () => analyzeDirectory(directory, 0, undefined, []), 5);
+  const perf = await benchmark(
+    async () => analyzeDirectory(directory, 0, undefined, []),
+    5
+  );
 
   const summary = {
     dirPath: stats.dirPath,
@@ -111,26 +116,48 @@ export async function analyzeAndBenchmark(directory: string) {
   };
 
   console.log("Summary:", summary);
-
   await InsertDataToPinot(summary);
 
   return summary;
 }
 
+// ---------- Utilities ----------
+export async function* streamSubDirectories(
+  directory: string,
+  pageSize = 1000
+) {
+  const entries = await fsp.readdir(directory, { withFileTypes: true });
+  let page: string[] = [];
+
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      page.push(path.join(directory, entry.name));
+      if (page.length >= pageSize) {
+        yield page;
+        page = [];
+      }
+    }
+  }
+  if (page.length) yield page;
+}
+
 export async function getSubDirectories(dir: string): Promise<string[]> {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const entries = await fsp.readdir(dir, { withFileTypes: true });
   return entries
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(dir, entry.name));
 }
 
-
-export async function analyzeDirectoryActivity(dirPath: string): Promise<DirectoryStats> {
-  return await analyzeDirectory(dirPath); // your logic here
+export async function analyzeDirectoryActivity(
+  dirPath: string
+): Promise<DirectoryStats> {
+  return analyzeDirectory(dirPath);
 }
 
-export async function benchmarkActivity(dirPath: string): Promise<BenchmarkResult> {
-  return await benchmark(() => analyzeDirectory(dirPath), 5);
+export async function benchmarkActivity(
+  dirPath: string
+): Promise<BenchmarkResult> {
+  return benchmark(() => analyzeDirectory(dirPath), 5);
 }
 
 export async function insertToPinotActivity(summary: any): Promise<void> {

@@ -1,10 +1,8 @@
-// client.ts
-import { fsWorkflows } from "../workflows/fs-workflows";
 import { Connection, Client } from "@temporalio/client";
 import fs from "fs";
 import path from "path";
 
-async function runAll(nodeModulesPath: string, maxParallel: number) {
+async function runAll(nodeModulesPath: string, maxParallel: number, concurrency: number) {
   const connection = await Connection.connect();
   const client = new Client({ connection });
 
@@ -15,25 +13,20 @@ async function runAll(nodeModulesPath: string, maxParallel: number) {
 
   console.log(`📂 Found ${subDirs.length} subdirectories.`);
 
-  // Start workflows in batches of `maxParallel`
   for (let i = 0; i < subDirs.length; i += maxParallel) {
     const batch = subDirs.slice(i, i + maxParallel);
-
     console.log(`🚀 Starting batch of ${batch.length} workflows...`);
 
-    // Start workflows for this batch
     const handles = await Promise.all(
-      batch.map((dir) => {
-        const wfId = `fs-${path.basename(dir)}-${Date.now()}`;
-        return client.workflow.start(fsWorkflows, {
-          args: [dir],
+      batch.map((dir) =>
+        client.workflow.start("fsWorkflows", {
+          args: [dir, concurrency], // pass concurrency into workflow
           taskQueue: "fs-task-queue",
-          workflowId: wfId,
-        });
-      })
+          workflowId: `fs-${path.basename(dir)}-${Date.now()}`,
+        })
+      )
     );
 
-    // Wait for all results in this batch
     const results = await Promise.allSettled(handles.map((h) => h.result()));
 
     results.forEach((res, idx) => {
@@ -47,12 +40,14 @@ async function runAll(nodeModulesPath: string, maxParallel: number) {
   }
 }
 
-// CLI arg for parallelism
-const maxParallel = parseInt(process.argv[2] || "2", 10);
+// CLI args → node client.js [maxParallel] [concurrencyPerWorkflow]
+const maxParallel = Math.max(1, parseInt(process.argv[2] || "2", 10));
+const concurrency = Math.max(1, parseInt(process.argv[3] || "5", 10));
 
 runAll(
   "/Users/yuvraj.sankilwar/Documents/Files/typescript-development/directory-analyzer/node_modules",
-  maxParallel
+  maxParallel,
+  concurrency
 ).catch((err) => {
   console.error("❌ Fatal error:", err);
   process.exit(1);
